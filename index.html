@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Thunder Freight Truck.com</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+
+<style>
+body { font-family: system-ui; background:#0b0f19; color:white; }
+
+.card { transition:0.2s; }
+.card:hover { transform:scale(1.02); }
+
+.page { animation:fade .25s ease; }
+@keyframes fade {
+  from {opacity:0; transform:translateY(10px);}
+  to {opacity:1; transform:translateY(0);}
+}
+
+.sidebar {
+  position:sticky;
+  top:0;
+  height:100vh;
+}
+</style>
+</head>
+
+<body>
+
+<div id="app"></div>
+
+<script>
+
+/* ======================
+   120+ TRUCK DATABASE
+====================== */
+const trucks = Array.from({length:120}).map((_,i)=>{
+
+  const brands = ["Ford","Chevrolet","Ram","Toyota","GMC","Nissan"];
+  const brand = brands[i % brands.length];
+
+  return {
+    id: brand.toLowerCase()+"-"+i,
+    brand,
+    name: brand+" Truck "+(i+1),
+    price: 10000 + (i * 600),
+    hp: 200 + (i % 300),
+    towing: 5000 + (i % 15000),
+    engine: "V6 / V8 Turbo",
+    img: "https://images.unsplash.com/photo-1601584115197-04ecc0da31d7"
+  };
+});
+
+let state = {
+  search:"",
+  brand:"All",
+  maxPrice:80000
+};
+
+const app = document.getElementById("app");
+
+/* ======================
+   STATE MANAGEMENT WITH PERSISTENCE
+====================== */
+function setState(updates) {
+  state = { ...state, ...updates };
+  localStorage.setItem('truckState', JSON.stringify(state));
+  renderHome();
+}
+
+// Restore on load
+window.onload = () => {
+  const saved = localStorage.getItem('truckState');
+  if (saved) state = JSON.parse(saved);
+  router();
+};
+
+/* ======================
+   ROUTER
+====================== */
+window.onhashchange = router;
+
+function router(){
+  if(!location.hash || location.hash==="#/") renderHome();
+  else renderDetails(location.hash.replace("#/truck/",""));
+}
+
+/* ======================
+   FILTER
+====================== */
+function getData(){
+  return trucks.filter(t=>
+    (state.brand==="All" || t.brand===state.brand) &&
+    t.price <= state.maxPrice &&
+    t.name.toLowerCase().includes(state.search.toLowerCase())
+  );
+}
+
+/* ======================
+   SIDEBAR TOGGLE
+====================== */
+function toggleSidebar() {
+  const sidebar = document.getElementById("sidebar");
+  if (sidebar) {
+    sidebar.classList.toggle("hidden");
+  }
+}
+
+/* ======================
+   HOME
+====================== */
+function renderHome(){
+
+  const data = getData();
+  const brands = ["All",...new Set(trucks.map(t=>t.brand))];
+
+  app.innerHTML = `
+  <div class="page flex flex-col md:flex-row">
+
+    <!-- MOBILE FILTER TOGGLE -->
+    <button class="md:hidden m-4 px-4 py-2 bg-blue-600 rounded"
+      onclick="toggleSidebar()">
+      ☰ Filters
+    </button>
+
+    <!-- SIDEBAR -->
+    <div class="sidebar w-full md:w-72 bg-gray-900 p-4 hidden md:block" id="sidebar">
+
+      <h2 class="text-xl font-bold mb-4">Filters</h2>
+
+      <input placeholder="Search..."
+        class="w-full p-2 bg-gray-800 rounded mb-3 text-white"
+        value="${state.search}"
+        oninput="setState({search:this.value})">
+
+      <select class="w-full p-2 bg-gray-800 rounded mb-3 text-white"
+        onchange="setState({brand:this.value})">
+        ${brands.map(b=>`<option ${b===state.brand?'selected':''}>${b}</option>`).join("")}
+      </select>
+
+      <p class="text-sm mb-2">Max Price: $${state.maxPrice}</p>
+
+      <input type="range" min="10000" max="80000"
+        value="${state.maxPrice}"
+        oninput="setState({maxPrice:this.value})"
+        class="w-full">
+
+    </div>
+
+    <!-- MAIN -->
+    <div class="flex-1">
+
+      <div class="p-6 bg-gradient-to-r from-blue-900 to-gray-900">
+        <h1 class="text-3xl font-bold">Thunder Freight Truck.com</h1>
+        <p class="text-gray-300">AutoTrader Level Marketplace</p>
+      </div>
+
+      <div class="grid md:grid-cols-3 gap-6 p-6">
+
+        ${data.length > 0 ? data.map(t=>`
+          <div class="card bg-gray-900 p-4 rounded-xl">
+
+            <img src="${t.img}" class="rounded h-48 w-full object-cover">
+
+            <h2 class="font-bold mt-2">${t.name}</h2>
+            <p class="text-blue-400">$${t.price}</p>
+            <p class="text-sm text-gray-400">${t.brand}</p>
+
+            <button onclick="go('${t.id}')"
+              class="mt-3 w-full bg-blue-600 py-2 rounded hover:bg-blue-700">
+              View Details
+            </button>
+
+          </div>
+        `).join("") : `<p class="text-gray-400 col-span-full">No trucks found. Try adjusting your filters.</p>`}
+
+      </div>
+    </div>
+  </div>
+  `;
+}
+
+/* ======================
+   DETAILS
+====================== */
+function renderDetails(id){
+
+  const t = trucks.find(x=>x.id===id);
+
+  if (!t) {
+    app.innerHTML = `
+    <div class="page p-6">
+      <p class="text-red-500 text-lg">Truck not found</p>
+      <button onclick="back()"
+        class="bg-gray-800 px-4 py-2 rounded mt-4">
+        ← Back
+      </button>
+    </div>
+    `;
+    return;
+  }
+
+  app.innerHTML = `
+  <div class="page p-6">
+
+    <button onclick="back()"
+      class="bg-gray-800 px-4 py-2 rounded mb-4">
+      ← Back
+    </button>
+
+    <div class="grid md:grid-cols-2 gap-6">
+
+      <img src="${t.img}" class="rounded-xl">
+
+      <div class="bg-gray-900 p-6 rounded-xl">
+
+        <h1 class="text-3xl font-bold">${t.name}</h1>
+        <p class="text-blue-400 text-xl">$${t.price}</p>
+
+        <p class="mt-4">Brand: ${t.brand}</p>
+        <p>Engine: ${t.engine}</p>
+        <p>HP: ${t.hp}</p>
+        <p>Towing: ${t.towing}</p>
+
+      </div>
+
+    </div>
+  </div>
+  `;
+}
+
+/* ======================
+   NAV
+====================== */
+function go(id){
+  location.hash="/truck/"+id;
+}
+function back(){
+  location.hash="/";
+}
+
+</script>
+
+</body>
+</html>
